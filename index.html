@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Molecular Weight Combination Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .calculator {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+        }
+        .config-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+        label {
+            font-weight: bold;
+            min-width: 80px;
+        }
+        input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        input[type="number"] {
+            width: 150px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 8px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .add-button {
+            background-color: #2196F3;
+        }
+        .remove-button {
+            background-color: #dc3545;
+        }
+        .compare-button {
+            background-color: #6f42c1;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .results-table th, .results-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .results-table th {
+            background-color: #f5f5f5;
+        }
+        .results-table tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+        .results-table tr:hover {
+            background-color: #f0f0f0;
+        }
+        .results-container {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <h1>Molecular Weight Combination Calculator</h1>
+
+        <div class="config-section">
+            <h3>Combination Range Settings</h3>
+            <div class="input-group">
+                <label>Protein Range:</label>
+                <input type="number" id="proteinMin" value="0" min="0" max="100">
+                <span>to</span>
+                <input type="number" id="proteinMax" value="3" min="1" max="100">
+                
+                <label style="margin-left: 20px;">Antigen Range:</label>
+                <input type="number" id="antigenMin" value="0" min="0" max="100">
+                <span>to</span>
+                <input type="number" id="antigenMax" value="3" min="1" max="100">
+            </div>
+        </div>
+
+        <div class="section" id="proteinSection">
+            <h3>Protein Molecular Weights</h3>
+            <div id="proteinInputs">
+                <!-- Protein inputs will be added here -->
+            </div>
+            <button class="add-button" onclick="addInput('protein')">Add Protein Field</button>
+            <button class="remove-button" onclick="removeInput('protein')" id="removeProteinBtn">Remove Field</button>
+        </div>
+
+        <div class="section" id="antigenSection">
+            <h3>Antigen Molecular Weights</h3>
+            <div id="antigenInputs">
+                <!-- Antigen inputs will be added here -->
+            </div>
+            <button class="add-button" onclick="addInput('antigen')">Add Antigen Field</button>
+            <button class="remove-button" onclick="removeInput('antigen')" id="removeAntigenBtn">Remove Field</button>
+        </div>
+
+        <div class="section" id="compareSection">
+            <h3>Compare Values</h3>
+            <div class="input-group">
+                <label>Tolerance (±):</label>
+                <input type="number" id="tolerance" value="0.01" step="0.001" min="0">
+            </div>
+            <div id="compareInputs">
+                <!-- Compare inputs will be added here -->
+            </div>
+            <button class="add-button" onclick="addInput('compare')">Add Compare Field</button>
+            <button class="remove-button" onclick="removeInput('compare')" id="removeCompareBtn">Remove Field</button>
+            <button class="compare-button" onclick="findMatches()">Compare Values</button>
+        </div>
+
+        <button onclick="calculateCombinations()">Calculate All Combinations</button>
+
+        <div id="matches" class="results-container"></div>
+        <div id="results" class="results-container"></div>
+    </div>
+
+    <script>
+        // Initialize input fields
+        function createInputGroup(type) {
+            const div = document.createElement('div');
+            div.className = 'input-group';
+            
+            const labelInput = document.createElement('input');
+            labelInput.type = 'text';
+            labelInput.placeholder = type === 'compare' ? 'Value to compare' : 'Label (optional)';
+            labelInput.className = `${type}-label`;
+            
+            const weightInput = document.createElement('input');
+            weightInput.type = 'number';
+            weightInput.step = 'any';
+            weightInput.placeholder = type === 'compare' ? 'Value' : 'Molecular Weight';
+            weightInput.className = `${type}-weight`;
+            weightInput.required = true;
+
+            if (type === 'compare') {
+                div.appendChild(weightInput);
+            } else {
+                div.appendChild(labelInput);
+                div.appendChild(weightInput);
+            }
+            
+            return div;
+        }
+
+        // Add input field
+        function addInput(type) {
+            const container = document.getElementById(`${type}Inputs`);
+            container.appendChild(createInputGroup(type));
+            updateRemoveButton(type);
+        }
+
+        // Remove input field
+        function removeInput(type) {
+            const container = document.getElementById(`${type}Inputs`);
+            if (container.children.length > 1) {
+                container.removeChild(container.lastChild);
+            }
+            updateRemoveButton(type);
+        }
+
+        // Update remove button state
+        function updateRemoveButton(type) {
+            const container = document.getElementById(`${type}Inputs`);
+            const button = document.getElementById(`remove${type.charAt(0).toUpperCase() + type.slice(1)}Btn`);
+            button.disabled = container.children.length <= 1;
+        }
+
+        // Calculate combinations
+        function calculateCombinations() {
+            const proteinInputs = Array.from(document.getElementsByClassName('protein-weight'))
+                .map((input, index) => ({
+                    weight: parseFloat(input.value),
+                    label: document.getElementsByClassName('protein-label')[index].value || `Protein ${index + 1}`
+                }))
+                .filter(p => !isNaN(p.weight));
+
+            const antigenInputs = Array.from(document.getElementsByClassName('antigen-weight'))
+                .map((input, index) => ({
+                    weight: parseFloat(input.value),
+                    label: document.getElementsByClassName('antigen-label')[index].value || `Antigen ${index + 1}`
+                }))
+                .filter(a => !isNaN(a.weight));
+
+            const proteinMin = parseInt(document.getElementById('proteinMin').value) || 0;
+            const proteinMax = parseInt(document.getElementById('proteinMax').value) || 3;
+            const antigenMin = parseInt(document.getElementById('antigenMin').value) || 0;
+            const antigenMax = parseInt(document.getElementById('antigenMax').value) || 3;
+
+            let combinations = new Set();
+            let combinationsList = [];
+
+            for (let p = proteinMin; p <= proteinMax; p++) {
+                for (let a = antigenMin; a <= antigenMax; a++) {
+                    if (p === 0 && a === 0) continue;
+
+                    for (const protein of proteinInputs) {
+                        for (const antigen of antigenInputs) {
+                            let components = [];
+                            let totalMW = 0;
+
+                            if (p > 0) {
+                                totalMW += p * protein.weight;
+                                components.push(`${p}× ${protein.label} (${protein.weight.toFixed(2)} MW)`);
+                            }
+
+                            if (a > 0) {
+                                totalMW += a * antigen.weight;
+                                components.push(`${a}× ${antigen.label} (${antigen.weight.toFixed(2)} MW)`);
+                            }
+
+                            const combinationKey = `${totalMW.toFixed(2)}-${components.sort().join('|')}`;
+                            
+                            if (!combinations.has(combinationKey)) {
+                                combinations.add(combinationKey);
+                                combinationsList.push({
+                                    components,
+                                    totalMW
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            window.calculatedResults = combinationsList.sort((a, b) => a.totalMW - b.totalMW);
+            displayResults(calculatedResults);
+        }
+
+        // Find matching combinations
+        function findMatches() {
+            if (!window.calculatedResults) {
+                alert('Please calculate combinations first');
+                return;
+            }
+
+            const tolerance = parseFloat(document.getElementById('tolerance').value) || 0.01;
+            const compareValues = Array.from(document.getElementsByClassName('compare-weight'))
+                .map(input => parseFloat(input.value))
+                .filter(v => !isNaN(v));
+
+            const matches = window.calculatedResults.filter(result =>
+                compareValues.some(v => Math.abs(result.totalMW - v) <= tolerance)
+            );
+
+            displayMatches(matches);
+        }
+
+        // Display results
+        function displayResults(results) {
+            const container = document.getElementById('results');
+            container.innerHTML = `
+                <h3>All Combinations</h3>
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Combination</th>
+                            <th>Components</th>
+                            <th>Total MW</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${results.map((result, index) => `
+                            <tr>
+                                <td>#${index + 1}</td>
+                                <td>${result.components.join(' + ')}</td>
+                                <td>${result.totalMW.toFixed(2)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Display matches
+        function displayMatches(matches) {
+            const container = document.getElementById('matches');
+            if (matches.length === 0) {
+                container.innerHTML = '<p>No matches found</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <h3>Matching Combinations</h3>
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Components</th>
+                            <th>Total MW</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${matches.map(match => `
+                            <tr>
+                                <td>${match.components.join(' + ')}</td>
+                                <td>${match.totalMW.toFixed(2)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Initialize the calculator
+        function initialize() {
+            ['protein', 'antigen', 'compare'].forEach(type => {
+                const container = document.getElementById(`${type}Inputs`);
+                container.appendChild(createInputGroup(type));
+                container.appendChild(createInputGroup(type));
+                updateRemoveButton(type);
+            });
+        }
+
+        // Initialize on page load
+        initialize();
+    </script>
+</body>
+</html>
